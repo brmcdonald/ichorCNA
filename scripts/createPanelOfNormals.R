@@ -1,6 +1,5 @@
 library(HMMcopy)
 library(optparse)
-library(ichorCNA)
 
 options(stringsAsFactors=FALSE, scipen=0)
 options(bitmapType='cairo')
@@ -16,8 +15,10 @@ option_list <- list(
 	make_option(c("--maleChrXLogRThres"), type="numeric", default=-0.80, help = "ChrX Log ratio threshold to confirm as male gender."),
 	make_option(c("-e", "--exons.bed"), type = "character", default=NULL, help = "Path to bed file containing exon regions."),
 	make_option(c("--method"), type = "character", default="median", help="Median or Mean."),
-	make_option(c("--ylim"), type = "character", default="c(-2,2)", help="Y-limits for plotting of mean/median log ratios")
+	make_option(c("--ylim"), type = "character", default="c(-2,2)", help="Y-limits for plotting of mean/median log ratios"),
+  make_option(c("--libdir"), type = "character", default=NULL, help = "Script library path. Usually exclude this argument unless custom modifications have been made to the ichorCNA R package code and the user would like to source those R files. Default: [%default]")
 )
+
 parseobj <- OptionParser(option_list=option_list)
 opt <- parse_args(parseobj)
 print(opt)
@@ -30,10 +31,21 @@ exons.bed <- opt$exons.bed  # "0" if none specified
 centromere <- opt$centromere
 method <- opt$method
 outfile <- opt$outfile
+libdir <- opt$libdir
 chrs <- eval(parse(text = opt$chrs))
 ylim <- eval(parse(text = opt$ylim))
 chrNormalize <- eval(parse(text=opt$chrNormalize))
 maleChrXLogRThres <- opt$maleChrXLogRThres
+
+if (!is.null(libdir) && libdir != "None"){
+	source(paste0(libdir,"/R/utils.R"))
+	source(paste0(libdir,"/R/segmentation.R"))
+	source(paste0(libdir,"/R/EM.R"))
+	source(paste0(libdir,"/R/output.R"))
+	source(paste0(libdir,"/R/plotting.R"))
+} else {
+    library(ichorCNA)
+}
 
 if (!is.null(centromere)){
 	centromere <- read.delim(centromere,header=T,stringsAsFactors=F,sep="\t")
@@ -69,7 +81,7 @@ for (i in 1:length(files)){
 		targetedSequences <- NULL
 	}
 	normal_counts <- loadReadCountsFromWig(normal_reads, chrs=chrs, gc=gc, map=map, 
-					centromere=centromere, targetedSequences=targetedSequences)
+					centromere=centromere, targetedSequences=targetedSequences, chrNormalize=chrs,mapScoreThres = 0.9)
 	
 	gender <- normal_counts$gender
 

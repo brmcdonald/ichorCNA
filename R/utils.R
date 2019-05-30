@@ -13,6 +13,11 @@
 ####################################
 ##### FUNCTION TO FILTER CHRS ######
 ####################################
+bmVersion <- function(){
+print("Running BRM fork of ichorCNA")
+}
+
+
 keepChr <- function(tumour_reads, chr = c(1:22,"X","Y")){	
 	tumour_reads <- tumour_reads[space(tumour_reads) %in% chr, ]
 	tumour_reads <- as.data.frame(tumour_reads)
@@ -40,7 +45,6 @@ filterEmptyChr <- function(gr){
 excludeCentromere <- function(x, centromere, flankLength = 0, genomeStyle = "NCBI"){
 	require(GenomeInfoDb)
 	colnames(centromere)[1:3] <- c("space","start","end")
-	centromere$space <- setGenomeStyle(centromere$space, genomeStyle)
 	centromere$start <- centromere$start - flankLength
 	centromere$end <- centromere$end + flankLength
 	centromere$space <- factor(centromere$space, levels = centromere$space)
@@ -72,39 +76,43 @@ setGenomeStyle <- function(x, genomeStyle = "NCBI", species = "Homo_sapiens"){
 loadReadCountsFromWig <- function(counts, chrs = c(1:22, "X", "Y"), gc = NULL, map = NULL, centromere = NULL, flankLength = 100000, targetedSequences = NULL, genomeStyle = "NCBI", applyCorrection = TRUE, mapScoreThres = 0.9, chrNormalize = c(1:22, "X", "Y"), fracReadsInChrYForMale = 0.002, chrXMedianForMale = -0.5, useChrY = TRUE){
 	require(HMMcopy)
 	require(GenomeInfoDb)
-	names(counts) <- setGenomeStyle(names(counts), genomeStyle)
-	counts.raw <- counts	
+	print("LoadingRC")
+	counts.raw <- counts
+
+	print("FilterChrom")
 	counts <- keepChr(counts, chrs)
+	print("FilterGC")
 	if (!is.null(gc)){ 
-		names(gc) <- setGenomeStyle(names(gc), genomeStyle)
 		counts$gc <- keepChr(gc, chrs)$value
 	}
+	print("FilterMap")
 	if (!is.null(map)){ 
-		names(map) <- setGenomeStyle(names(map), genomeStyle)
 		counts$map <- keepChr(map, chrs)$value
 	}
 	colnames(counts)[1] <- c("reads")
 	
 	# remove centromeres
+	print("Remove Centromere")
 	if (!is.null(centromere)){ 
-		centromere$Chr <- setGenomeStyle(centromere$Chr, genomeStyle)
 		counts <- excludeCentromere(counts, centromere, flankLength = flankLength, genomeStyle=genomeStyle)
 	}
 	# keep targeted sequences
 	if (!is.null(targetedSequences)){
-		targetedSequences[,1] <- setGenomeStyle(targetedSequences[,1], genomeStyle)
 		countsExons <- filterByTargetedSequences(counts, targetedSequences)
 		counts <- counts[countsExons$ix,]
 	}
 	gender <- NULL
 	if (applyCorrection){
 	## correct read counts ##
+		print("Correcting ReadCounts")
     counts <- correctReadCounts(counts, chrNormalize = chrNormalize)
     if (!is.null(map)) {
       ## filter bins by mappability
+			print("Filtering by Mappability")
       counts <- filterByMappabilityScore(counts, map=map, mapScoreThres = mapScoreThres)
     }
     ## get gender ##
+		print("Getting Gender")
     gender <- getGender(counts.raw, counts, gc, map, fracReadsInChrYForMale = fracReadsInChrYForMale, 
     					chrXMedianForMale = chrXMedianForMale, useChrY = useChrY,
                         centromere=centromere, flankLength=flankLength, targetedSequences = targetedSequences,
@@ -174,8 +182,6 @@ getGender <- function(rawReads, normReads, gc, map, fracReadsInChrYForMale = 0.0
 	
 normalizeByPanelOrMatchedNormal <- function(tumour_copy, chrs = c(1:22, "X", "Y"), 
       normal_panel = NULL, normal_copy = NULL, gender = "female", normalizeMaleX = FALSE){
-    genomeStyle <- seqlevelsStyle(as.vector(tumour_copy$space))[1]
-    seqlevelsStyle(chrs) <- genomeStyle
  	### COMPUTE LOG RATIO FROM MATCHED NORMAL OR PANEL AND HANDLE CHRX ###
 	## NO PANEL
 	# matched normal but NO panel, then just normalize by matched normal (WES)
@@ -200,7 +206,6 @@ normalizeByPanelOrMatchedNormal <- function(tumour_copy, chrs = c(1:22, "X", "Y"
 	# PANEL, then normalize by panel instead of matched normal (ULP and WES)
 	if (!is.null(normal_panel)){
 		panel <- readRDS(normal_panel) ## load in IRanges object
-		names(panel) <- setGenomeStyle(names(panel), genomeStyle)
 		panel <- keepChr(panel, chr = chrs)
         # intersect bins in sample and panel
         hits <- findOverlaps(tumour_copy, panel, type="equal")
