@@ -100,8 +100,8 @@ gender <- NULL
 outImage <- paste0(outDir,"/", patientID,".RData")
 genomeStyle <- opt$genomeStyle
 chrs <- as.character(eval(parse(text = opt$chrs)))
-chrTrain <- as.character(eval(parse(text=opt$chrTrain))); 
-chrNormalize <- as.character(eval(parse(text=opt$chrNormalize))); 
+chrTrain <- as.character(eval(parse(text=opt$chrs))); 
+chrNormalize <- as.character(eval(parse(text=opt$chrs))); 
 seqlevelsStyle(chrs) <- genomeStyle
 seqlevelsStyle(chrNormalize) <- genomeStyle
 seqlevelsStyle(chrTrain) <- genomeStyle
